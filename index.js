@@ -17,6 +17,25 @@ const pool = new Pool({
   },
 });
 
+// Automatically create the users table if it doesn't exist
+const initializeDatabase = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Database initialized: users table is ready.');
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+  }
+};
+initializeDatabase();
+
 // Basic health check endpoint
 app.get('/', (req, res) => {
   res.send('Santgram API is running!');
