@@ -164,6 +164,110 @@ app.post('/api/reels', async (req, res) => {
   }
 });
 
+// --- ADMIN PANEL SECURE ROUTES ---
+
+const adminAuth = (req, res, next) => {
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+  const adminPassword = process.env.ADMIN_PASSWORD || 'SantgramAdmin123';
+  if (login && password && login === 'admin' && password === adminPassword) {
+    return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+};
+
+app.get('/admin', adminAuth, (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Santgram Admin Panel</title>
+      <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; max-width: 800px; margin: auto; }
+        .card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-approve { background: #4CAF50; }
+        .btn-reject { background: #f44336; margin-left: 10px; }
+      </style>
+    </head>
+    <body>
+      <h2>Santgram Admin Panel - Pending Videos</h2>
+      <div id="reels">Loading...</div>
+      <script>
+        async function loadPending() {
+          const res = await fetch('/api/admin/pending-reels');
+          const reels = await res.json();
+          const container = document.getElementById('reels');
+          container.innerHTML = '';
+          if (reels.length === 0) {
+             container.innerHTML = '<p>No pending videos to approve.</p>';
+             return;
+          }
+          reels.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = \`
+              <div>
+                <strong>\${r.username}</strong> submitted video ID: <code>\${r.video_id}</code><br>
+                <small>\${r.description}</small>
+              </div>
+              <div>
+                <button class="btn btn-approve" onclick="approve(\${r.id})">Approve</button>
+                <button class="btn btn-reject" onclick="reject(\${r.id})">Reject</button>
+              </div>
+            \`;
+            container.appendChild(div);
+          });
+        }
+        
+        async function approve(id) {
+          await fetch('/api/admin/approve-reel/' + id, { method: 'PUT' });
+          loadPending();
+        }
+        
+        async function reject(id) {
+          if (confirm("Are you sure you want to reject and delete this video?")) {
+            await fetch('/api/admin/reject-reel/' + id, { method: 'DELETE' });
+            loadPending();
+          }
+        }
+        
+        loadPending();
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+app.get('/api/admin/pending-reels', adminAuth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM reels WHERE is_approved = FALSE ORDER BY created_at ASC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/admin/approve-reel/:id', adminAuth, async (req, res) => {
+  try {
+    await pool.query('UPDATE reels SET is_approved = TRUE WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/admin/reject-reel/:id', adminAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM reels WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
