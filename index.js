@@ -17,7 +17,7 @@ const pool = new Pool({
   },
 });
 
-// Automatically create the users table if it doesn't exist
+// Automatically create the users and reels tables if they don't exist
 const initializeDatabase = async () => {
   try {
     await pool.query(`
@@ -29,7 +29,17 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('Database initialized: users table is ready.');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reels (
+        id SERIAL PRIMARY KEY,
+        video_id VARCHAR(255) NOT NULL,
+        username VARCHAR(100) NOT NULL,
+        description TEXT,
+        is_approved BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Database initialized: users and reels tables are ready.');
   } catch (err) {
     console.error('Failed to initialize database:', err);
   }
@@ -117,6 +127,43 @@ app.post('/api/signup', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Get Approved Reels Endpoint
+app.get('/api/reels', async (req, res) => {
+  try {
+    // Fetch only approved reels, newest first
+    const result = await pool.query('SELECT * FROM reels WHERE is_approved = TRUE ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching reels:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Post New Reel Endpoint
+app.post('/api/reels', async (req, res) => {
+  const { video_id, username, description } = req.body;
+
+  if (!video_id || !username) {
+    return res.status(400).json({ error: 'Video ID and username are required' });
+  }
+
+  try {
+    const newReel = await pool.query(
+      'INSERT INTO reels (video_id, username, description) VALUES ($1, $2, $3) RETURNING *',
+      [video_id, username, description || '']
+    );
+
+    res.status(201).json({
+      message: 'Video submitted successfully! It will appear once approved by an admin.',
+      reel: newReel.rows[0],
+    });
+  } catch (error) {
+    console.error('Error posting reel:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
