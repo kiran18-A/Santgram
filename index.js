@@ -196,6 +196,14 @@ app.get('/admin', adminAuth, (req, res) => {
       <h2>Santgram Admin Panel - Pending Videos</h2>
       <div id="reels">Loading...</div>
       <script>
+        function extractYoutubeId(url) {
+          if (!url || typeof url !== 'string') return '';
+          if (!url.includes('http')) return url;
+          const regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]*).*/;
+          const match = url.match(regExp);
+          return (match && match[2].length === 11) ? match[2] : url;
+        }
+
         async function loadPending() {
           const res = await fetch('/api/admin/pending-reels');
           const reels = await res.json();
@@ -206,16 +214,20 @@ app.get('/admin', adminAuth, (req, res) => {
              return;
           }
           reels.forEach(r => {
+            const videoId = extractYoutubeId(r.video_id);
             const div = document.createElement('div');
             div.className = 'card';
             div.innerHTML = \`
               <div>
-                <strong>\${r.username}</strong> submitted video ID: <code>\${r.video_id}</code><br>
+                <strong>\${r.username}</strong> submitted video:<br>
+                <div style="margin: 10px 0;">
+                  <iframe width="280" height="157" src="https://www.youtube.com/embed/\${videoId}" frameborder="0" allowfullscreen></iframe>
+                </div>
                 <small>\${r.description}</small>
               </div>
-              <div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button class="btn btn-approve" onclick="approve(\${r.id})">Approve</button>
-                <button class="btn btn-reject" onclick="reject(\${r.id})">Reject</button>
+                <button class="btn btn-reject" onclick="reject(\${r.id})" style="margin-left: 0;">Reject</button>
               </div>
             \`;
             container.appendChild(div);
