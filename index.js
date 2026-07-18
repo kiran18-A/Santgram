@@ -193,8 +193,16 @@ app.get('/admin', adminAuth, (req, res) => {
       </style>
     </head>
     <body>
-      <h2>Santgram Admin Panel - Pending Videos</h2>
+      <h2>Santgram Admin Panel</h2>
+      
+      <h3>Pending Videos (Requires Approval)</h3>
       <div id="reels">Loading...</div>
+
+      <hr style="margin: 40px 0;">
+
+      <h3>Approved Videos (Live on App)</h3>
+      <div id="approved-reels">Loading...</div>
+
       <script>
         function extractYoutubeId(url) {
           if (!url || typeof url !== 'string') return '';
@@ -234,9 +242,39 @@ app.get('/admin', adminAuth, (req, res) => {
           });
         }
         
+        async function loadApproved() {
+          const res = await fetch('/api/admin/approved-reels');
+          const reels = await res.json();
+          const container = document.getElementById('approved-reels');
+          container.innerHTML = '';
+          if (reels.length === 0) {
+             container.innerHTML = '<p>No approved videos yet.</p>';
+             return;
+          }
+          reels.forEach(r => {
+            const videoId = extractYoutubeId(r.video_id);
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = \`
+              <div>
+                <strong>\${r.username}</strong><br>
+                <div style="margin: 10px 0;">
+                  <iframe width="280" height="157" src="https://www.youtube.com/embed/\${videoId}" frameborder="0" allowfullscreen></iframe>
+                </div>
+                <small>\${r.description}</small>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-reject" onclick="removeReel(\${r.id})" style="margin-left: 0;">Remove Video</button>
+              </div>
+            \`;
+            container.appendChild(div);
+          });
+        }
+        
         async function approve(id) {
           await fetch('/api/admin/approve-reel/' + id, { method: 'PUT' });
           loadPending();
+          loadApproved();
         }
         
         async function reject(id) {
@@ -245,8 +283,16 @@ app.get('/admin', adminAuth, (req, res) => {
             loadPending();
           }
         }
+
+        async function removeReel(id) {
+          if (confirm("Are you sure you want to permanently delete this approved video from the app?")) {
+            await fetch('/api/admin/remove-reel/' + id, { method: 'DELETE' });
+            loadApproved();
+          }
+        }
         
         loadPending();
+        loadApproved();
       </script>
     </body>
     </html>
@@ -272,6 +318,24 @@ app.put('/api/admin/approve-reel/:id', adminAuth, async (req, res) => {
 });
 
 app.delete('/api/admin/reject-reel/:id', adminAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM reels WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/api/admin/approved-reels', adminAuth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM reels WHERE is_approved = TRUE ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/admin/remove-reel/:id', adminAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM reels WHERE id = $1', [req.params.id]);
     res.json({ success: true });
