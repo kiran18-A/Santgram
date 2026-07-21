@@ -27,10 +27,12 @@ const initializeDatabase = async () => {
         password_hash VARCHAR(255) NOT NULL,
         name VARCHAR(100) NOT NULL,
         profile_pic TEXT,
+        bio TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic TEXT;`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reels (
         id SERIAL PRIMARY KEY,
@@ -38,10 +40,11 @@ const initializeDatabase = async () => {
         username VARCHAR(100) NOT NULL,
         description TEXT,
         is_approved BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        likes INTEGER DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await pool.query(`ALTER TABLE reels ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0;`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
@@ -164,6 +167,80 @@ app.put('/api/users/profile-pic', async (req, res) => {
   }
 });
 
+// Update Bio Endpoint
+app.put('/api/users/bio', async (req, res) => {
+  const { email, bio } = req.body;
+  if (!email || bio === undefined) {
+    return res.status(400).json({ error: 'Email and bio are required' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE users SET bio = $1 WHERE email = $2 RETURNING id',
+      [bio, email]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'Bio updated successfully' });
+  } catch (error) {
+    console.error('Update bio error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Search Users Endpoint
+app.get('/api/users/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) {
+    return res.json([]);
+  }
+  try {
+    // Search by name (case-insensitive)
+    const result = await pool.query(
+      'SELECT name as username, profile_pic FROM users WHERE name ILIKE $1 LIMIT 20',
+      [`%${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get User Profile Endpoint
+app.get('/api/users/profile/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    // 1. Get user details
+    const userResult = await pool.query(
+      'SELECT name, bio, profile_pic FROM users WHERE name = $1',
+      [username]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const user = userResult.rows[0];
+
+    // 2. Get user's approved reels
+    const reelsResult = await pool.query(
+      'SELECT * FROM reels WHERE username = $1 AND is_approved = TRUE ORDER BY created_at DESC',
+      [username]
+    );
+
+    res.json({
+      user: {
+        username: user.name,
+        bio: user.bio,
+        profile_pic: user.profile_pic,
+      },
+      reels: reelsResult.rows,
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get comments for a reel
 app.get('/api/reels/:id/comments', async (req, res) => {
   const { id } = req.params;
@@ -194,6 +271,35 @@ app.post('/api/reels/:id/comments', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Post comment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update Likes Endpoint
+app.put('/api/reels/:id/like', async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  
+  if (!['like', 'unlike'].includes(action)) {
+    return res.status(400).json({ error: 'Action must be "like" or "unlike"' });
+  }
+
+  try {
+    let query = '';
+    if (action === 'like') {
+      query = 'UPDATE reels SET likes = likes + 1 WHERE id = $1 RETURNING likes';
+    } else {
+      query = 'UPDATE reels SET likes = GREATEST(likes - 1, 0) WHERE id = $1 RETURNING likes';
+    }
+    
+    const result = await pool.query(query, [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Reel not found' });
+    }
+    
+    res.json({ likes: result.rows[0].likes });
+  } catch (error) {
+    console.error('Like error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
