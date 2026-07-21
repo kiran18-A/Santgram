@@ -26,9 +26,11 @@ const initializeDatabase = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         name VARCHAR(100) NOT NULL,
+        profile_pic TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic TEXT;`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reels (
         id SERIAL PRIMARY KEY,
@@ -37,9 +39,19 @@ const initializeDatabase = async () => {
         description TEXT,
         is_approved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('Database initialized: users and reels tables are ready.');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        reel_id INTEGER REFERENCES reels(id) ON DELETE CASCADE,
+        username VARCHAR(100) NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Database initialized: users, reels, and comments tables are ready.');
   } catch (err) {
     console.error('Failed to initialize database:', err);
   }
@@ -81,6 +93,7 @@ app.post('/api/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        profile_pic: user.profile_pic,
       }
     });
 
@@ -122,6 +135,65 @@ app.post('/api/signup', async (req, res) => {
 
   } catch (error) {
     console.error('Signup error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Upload Profile Picture Endpoint
+app.put('/api/users/profile-pic', async (req, res) => {
+  const { email, profile_pic } = req.body;
+  
+  if (!email || !profile_pic) {
+    return res.status(400).json({ error: 'Email and profile_pic are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET profile_pic = $1 WHERE email = $2 RETURNING id',
+      [profile_pic, email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Profile picture updated successfully' });
+  } catch (error) {
+    console.error('Update profile pic error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get comments for a reel
+app.get('/api/reels/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      'SELECT * FROM comments WHERE reel_id = $1 ORDER BY created_at DESC',
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Fetch comments error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Post a comment to a reel
+app.post('/api/reels/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const { username, text } = req.body;
+  if (!username || !text) {
+    return res.status(400).json({ error: 'Username and text are required' });
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO comments (reel_id, username, text) VALUES ($1, $2, $3) RETURNING *',
+      [id, username, text]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Post comment error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
