@@ -408,11 +408,87 @@ app.get('/admin', adminAuth, (req, res) => {
     <head>
       <title>Santgram Admin Panel</title>
       <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; max-width: 800px; margin: auto; }
-        .card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
-        .btn-approve { background: #4CAF50; }
-        .btn-reject { background: #f44336; margin-left: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+        
+        :root {
+          --bg-main: #0f172a;
+          --bg-card: rgba(30, 41, 59, 0.7);
+          --text-main: #f8fafc;
+          --text-muted: #94a3b8;
+          --accent: #f97316;
+          --accent-hover: #ea580c;
+          --success: #10b981;
+          --danger: #ef4444;
+        }
+
+        body { 
+          font-family: 'Outfit', sans-serif; 
+          padding: 40px 20px; 
+          background: var(--bg-main); 
+          color: var(--text-main);
+          max-width: 900px; 
+          margin: auto; 
+          min-height: 100vh;
+        }
+
+        h2 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(to right, #f97316, #fcd34d); -webkit-background-clip: text; color: transparent; margin-bottom: 40px; text-align: center; }
+        h3 { font-size: 1.5rem; color: var(--text-main); margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        h4 { margin: 0 0 15px 0; color: var(--text-main); font-weight: 600; }
+
+        .card { 
+          background: var(--bg-card); 
+          padding: 20px; 
+          margin-bottom: 16px; 
+          border-radius: 16px; 
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); 
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          display: flex; 
+          align-items: center; 
+          justify-content: space-between;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+
+        .btn { 
+          padding: 10px 20px; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          color: white; 
+          font-weight: 600;
+          font-family: 'Outfit', sans-serif;
+          transition: all 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .btn:hover { transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
+
+        .btn-approve { background: var(--success); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3); }
+        .btn-approve:hover { background: #059669; }
+        
+        .btn-reject { background: var(--danger); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3); margin-left: 10px; }
+        .btn-reject:hover { background: #dc2626; }
+        
+        .btn-primary { background: var(--accent); box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3); }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        hr { border: 0; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 40px 0; }
+        
+        input[type="file"] {
+          background: rgba(255,255,255,0.05);
+          padding: 10px;
+          border-radius: 8px;
+          color: var(--text-muted);
+          border: 1px dashed rgba(255,255,255,0.2);
+          width: 100%;
+          box-sizing: border-box;
+          margin-bottom: 15px;
+        }
       </style>
     </head>
     <body>
@@ -427,7 +503,7 @@ app.get('/admin', adminAuth, (req, res) => {
       <div class="card" style="display: block;">
         <h4>Upload New Banner</h4>
         <input type="file" id="bannerFile" accept="image/*" />
-        <button class="btn btn-approve" style="margin-top: 10px;" onclick="uploadBanner()">Upload Banner</button>
+        <button class="btn btn-primary" onclick="uploadBanner()">Upload Banner</button>
       </div>
       <div id="banners" style="display: flex; flex-wrap: wrap; gap: 10px;">Loading banners...</div>
 
