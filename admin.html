@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Santgram Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+    
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --bg-sidebar: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #f97316;
+      --accent-hover: #ea580c;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+
+    body { 
+      font-family: 'Outfit', sans-serif; 
+      background: var(--bg-main); 
+      color: var(--text-main);
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* --- LOGIN SCREEN --- */
+    #login-screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-main);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    /* --- SIDEBAR --- */
+    #sidebar {
+      width: 250px;
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+
+    #sidebar h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #f97316, #fcd34d);
+      -webkit-background-clip: text;
+      color: transparent;
+      margin: 0 0 30px 20px;
+    }
+
+    .nav-item {
+      padding: 15px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background: rgba(249, 115, 22, 0.1);
+      color: var(--accent);
+      border-right: 4px solid var(--accent);
+    }
+
+    .logout-btn {
+      margin-top: auto;
+      color: var(--danger);
+    }
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-right-color: var(--danger);
+    }
+
+    /* --- MAIN CONTENT --- */
+    #main-content {
+      flex: 1;
+      padding: 40px;
+      overflow-y: auto;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- SHARED STYLES --- */
+    h3 { font-size: 1.8rem; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+    h4 { margin: 0 0 15px 0; color: var(--text-main); font-weight: 600; }
+
+    .card { 
+      background: var(--bg-card); 
+      padding: 20px; 
+      margin-bottom: 16px; 
+      border-radius: 16px; 
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); 
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between;
+      transition: transform 0.2s ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+
+    .btn { 
+      padding: 10px 20px; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      color: white; 
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.2s ease;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .btn:active { transform: scale(0.95); }
+
+    .btn-approve { background: var(--success); }
+    .btn-reject { background: var(--danger); margin-left: 10px; }
+    .btn-primary { background: var(--accent); }
+    
+    input[type="text"], input[type="password"] {
+      background: rgba(255,255,255,0.05);
+      padding: 15px;
+      border-radius: 12px;
+      color: var(--text-main);
+      border: 1px solid rgba(255,255,255,0.1);
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      outline: none; border-color: var(--accent);
+    }
+    input[type="file"] {
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      border: 1px dashed rgba(255,255,255,0.2);
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+    }
+    
+    .stats-grid { display: flex; gap: 20px; margin-bottom: 40px; flex-wrap: wrap; }
+    .stat-card { flex: 1; padding: 20px; background: var(--bg-card); border-radius: 16px; text-align: center; min-width: 200px; }
+    .stat-card h1 { font-size: 3rem; margin: 0; color: var(--accent); }
+    .stat-card p { margin: 5px 0 0 0; color: var(--text-muted); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h2 style="font-size: 2.5rem; font-weight: 800; background: linear-gradient(to right, #f97316, #fcd34d); -webkit-background-clip: text; color: transparent; margin-top: 0;">Admin Login</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button class="btn btn-primary" style="width: 100%; padding: 15px;" onclick="login()">Login to Dashboard</button>
+      <p id="login-error" style="color: var(--danger); margin-top: 15px; display: none;">Invalid credentials.</p>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar" style="display: none;">
+    <h2>Santgram</h2>
+    <div class="nav-item active" onclick="switchTab(this, 'dashboard')">🏠 Dashboard</div>
+    <div class="nav-item" onclick="switchTab(this, 'pending')">⏳ Pending Videos</div>
+    <div class="nav-item" onclick="switchTab(this, 'approved')">✅ Approved Videos</div>
+    <div class="nav-item" onclick="switchTab(this, 'upload')">📤 Upload Video</div>
+    <div class="nav-item" onclick="switchTab(this, 'banners')">🖼️ Banners</div>
+    <div class="nav-item logout-btn" onclick="logout()">🚪 Logout</div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main-content" style="display: none;">
+    
+    <!-- DASHBOARD HOME -->
+    <div id="page-dashboard" class="page active">
+      <h3>Welcome back, Admin</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h1 id="stat-pending">-</h1>
+          <p>Videos Pending Approval</p>
+        </div>
+        <div class="stat-card">
+          <h1 id="stat-approved">-</h1>
+          <p>Live Videos</p>
+        </div>
+        <div class="stat-card">
+          <h1 id="stat-banners">-</h1>
+          <p>Active Banners</p>
+        </div>
+      </div>
+      <p style="color: var(--text-muted);">Use the sidebar to manage videos and banners.</p>
+    </div>
+
+    <!-- PENDING REELS -->
+    <div id="page-pending" class="page">
+      <h3>Pending Videos</h3>
+      <div id="reels">Loading...</div>
+    </div>
+
+    <!-- APPROVED REELS -->
+    <div id="page-approved" class="page">
+      <h3>Approved Videos (Live)</h3>
+      <div id="approved-reels">Loading...</div>
+    </div>
+
+    <!-- UPLOAD REEL -->
+    <div id="page-upload" class="page">
+      <h3>Upload Video as @santgram</h3>
+      <div class="card" style="display: block; max-width: 500px;">
+        <input type="text" id="adminVideoUrl" placeholder="YouTube URL (e.g. https://youtu.be/...)" />
+        <input type="text" id="adminVideoDesc" placeholder="Description (Optional)" />
+        <button class="btn btn-primary" style="width: 100%;" onclick="uploadAdminVideo()">Post Video Instantly</button>
+      </div>
+    </div>
+
+    <!-- BANNERS -->
+    <div id="page-banners" class="page">
+      <h3>Banner Management</h3>
+      <div class="card" style="display: block; max-width: 500px;">
+        <h4>Upload New Banner</h4>
+        <input type="file" id="bannerFile" accept="image/*" />
+        <button class="btn btn-primary" onclick="uploadBanner()">Upload Banner</button>
+      </div>
+      <div id="banners" style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">Loading banners...</div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- NAVIGATION LOGIC ---
+    function switchTab(element, tabId) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      if (element) element.classList.add('active');
+
+      document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+      document.getElementById('page-' + tabId).classList.add('active');
+    }
+
+    // --- AUTHENTICATION LOGIC ---
+    function login() {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const token = 'Basic ' + btoa(u + ':' + p);
+      localStorage.setItem('adminToken', token);
+      checkAuth();
+    }
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('sidebar').style.display = 'none';
+      document.getElementById('main-content').style.display = 'none';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+      const token = localStorage.getItem('adminToken');
+      if (!options.headers) options.headers = {};
+      options.headers['Authorization'] = token;
+      
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        logout();
+        document.getElementById('login-error').style.display = 'block';
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    async function checkAuth() {
+      if (!localStorage.getItem('adminToken')) {
+        logout();
+        return;
+      }
+      try {
+        await fetchWithAuth('/api/admin/pending-reels');
+        document.getElementById('login-error').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('sidebar').style.display = 'flex';
+        document.getElementById('main-content').style.display = 'block';
+        
+        loadPending();
+        loadApproved();
+        loadBanners();
+      } catch (e) { }
+    }
+
+    // --- DASHBOARD LOGIC ---
+    function extractYoutubeId(url) {
+      if (!url || typeof url !== 'string') return '';
+      if (!url.includes('http')) return url;
+      const regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|\\&v=)([^#\\&\\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : url;
+    }
+
+    async function loadPending() {
+      const res = await fetchWithAuth('/api/admin/pending-reels');
+      const reels = await res.json();
+      document.getElementById('stat-pending').innerText = reels.length;
+      const container = document.getElementById('reels');
+      container.innerHTML = '';
+      if (reels.length === 0) {
+         container.innerHTML = '<p style="color: var(--text-muted);">No pending videos.</p>';
+         return;
+      }
+      reels.forEach(r => {
+        const videoId = extractYoutubeId(r.video_id);
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div>
+            <strong>${r.username}</strong> submitted video:<br>
+            <div style="margin: 10px 0; border-radius: 8px; overflow: hidden;">
+              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <small style="color: var(--text-muted);">${r.description}</small>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn btn-approve" onclick="approve(${r.id})">Approve</button>
+            <button class="btn btn-reject" onclick="reject(${r.id})" style="margin-left: 0;">Reject</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+    
+    async function loadApproved() {
+      const res = await fetchWithAuth('/api/admin/approved-reels');
+      const reels = await res.json();
+      document.getElementById('stat-approved').innerText = reels.length;
+      const container = document.getElementById('approved-reels');
+      container.innerHTML = '';
+      if (reels.length === 0) {
+         container.innerHTML = '<p style="color: var(--text-muted);">No approved videos.</p>';
+         return;
+      }
+      reels.forEach(r => {
+        const videoId = extractYoutubeId(r.video_id);
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div>
+            <strong>${r.username}</strong><br>
+            <div style="margin: 10px 0; border-radius: 8px; overflow: hidden;">
+              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <small style="color: var(--text-muted);">${r.description}</small>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn btn-reject" onclick="removeReel(${r.id})" style="margin-left: 0;">Remove Video</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+    
+    async function approve(id) {
+      await fetchWithAuth('/api/admin/approve-reel/' + id, { method: 'PUT' });
+      loadPending(); loadApproved();
+    }
+    
+    async function reject(id) {
+      if (confirm("Are you sure you want to reject and delete this video?")) {
+        await fetchWithAuth('/api/admin/reject-reel/' + id, { method: 'DELETE' });
+        loadPending();
+      }
+    }
+
+    async function removeReel(id) {
+      if (confirm("Are you sure you want to permanently delete this approved video from the app?")) {
+        await fetchWithAuth('/api/admin/remove-reel/' + id, { method: 'DELETE' });
+        loadApproved();
+      }
+    }
+    
+    async function loadBanners() {
+      const res = await fetch('/api/banners');
+      const banners = await res.json();
+      document.getElementById('stat-banners').innerText = banners.length;
+      const container = document.getElementById('banners');
+      container.innerHTML = '';
+      if (banners.length === 0) {
+         container.innerHTML = '<p style="color: var(--text-muted);">No active banners.</p>';
+         return;
+      }
+      banners.forEach(b => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.flexDirection = 'column';
+        div.style.width = '300px';
+        div.innerHTML = `
+          <img src="data:image/jpeg;base64,${b.image_base64}" style="width:100%; border-radius:8px; margin-bottom:15px;">
+          <button class="btn btn-reject" style="width: 100%; margin: 0;" onclick="deleteBanner(${b.id})">Delete Banner</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function uploadBanner() {
+      const fileInput = document.getElementById('bannerFile');
+      if (!fileInput.files[0]) return alert('Please select an image first.');
+      const reader = new FileReader();
+      reader.onload = async function() {
+        const base64String = reader.result.split(',')[1];
+        await fetchWithAuth('/api/admin/banners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_base64: base64String })
+        });
+        fileInput.value = '';
+        loadBanners();
+      };
+      reader.readAsDataURL(fileInput.files[0]);
+    }
+
+    async function deleteBanner(id) {
+      if (confirm("Are you sure you want to delete this banner?")) {
+        await fetchWithAuth('/api/admin/banners/' + id, { method: 'DELETE' });
+        loadBanners();
+      }
+    }
+    
+    async function uploadAdminVideo() {
+      const url = document.getElementById('adminVideoUrl').value;
+      const desc = document.getElementById('adminVideoDesc').value;
+      const videoId = extractYoutubeId(url);
+      if (!videoId) return alert('Invalid YouTube URL');
+
+      await fetchWithAuth('/api/admin/reels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: videoId, description: desc })
+      });
+      
+      document.getElementById('adminVideoUrl').value = '';
+      document.getElementById('adminVideoDesc').value = '';
+      alert('Video successfully posted to the app as @santgram!');
+      loadApproved();
+    }
+
+    // Start app
+    checkAuth();
+  </script>
+</body>
+</html>
