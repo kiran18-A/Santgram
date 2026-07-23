@@ -309,8 +309,15 @@ const PORT = process.env.PORT || 3000;
 // Get Approved Reels Endpoint
 app.get('/api/reels', async (req, res) => {
   try {
-    // Fetch only approved reels, newest first
-    const result = await pool.query('SELECT * FROM reels WHERE is_approved = TRUE ORDER BY created_at DESC');
+    // Fetch only approved reels with their comment count, newest first
+    const query = `
+      SELECT r.*, 
+             (SELECT COUNT(*) FROM comments c WHERE c.reel_id = r.id) as comment_count 
+      FROM reels r 
+      WHERE r.is_approved = TRUE 
+      ORDER BY r.created_at DESC
+    `;
+    const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching reels:', error);
