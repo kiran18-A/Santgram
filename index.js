@@ -54,7 +54,14 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('Database initialized: users, reels, and comments tables are ready.');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS banners (
+        id SERIAL PRIMARY KEY,
+        image_base64 TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Database initialized: users, reels, comments, and banners tables are ready.');
   } catch (err) {
     console.error('Failed to initialize database:', err);
   }
@@ -363,6 +370,37 @@ const adminAuth = (req, res, next) => {
   res.status(401).send('Authentication required.');
 };
 
+// Get Banners Endpoint
+app.get('/api/banners', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM banners ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching banners:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/admin/banners', adminAuth, async (req, res) => {
+  const { image_base64 } = req.body;
+  if (!image_base64) return res.status(400).json({ error: 'Image is required' });
+  try {
+    await pool.query('INSERT INTO banners (image_base64) VALUES ($1)', [image_base64]);
+    res.status(201).json({ message: 'Banner added successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add banner' });
+  }
+});
+
+app.delete('/api/admin/banners/:id', adminAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM banners WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Banner deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete banner' });
+  }
+});
+
 app.get('/admin', adminAuth, (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -382,6 +420,16 @@ app.get('/admin', adminAuth, (req, res) => {
       
       <h3>Pending Videos (Requires Approval)</h3>
       <div id="reels">Loading...</div>
+
+      <hr style="margin: 40px 0;">
+
+      <h3>Banner Management</h3>
+      <div class="card" style="display: block;">
+        <h4>Upload New Banner</h4>
+        <input type="file" id="bannerFile" accept="image/*" />
+        <button class="btn btn-approve" style="margin-top: 10px;" onclick="uploadBanner()">Upload Banner</button>
+      </div>
+      <div id="banners" style="display: flex; flex-wrap: wrap; gap: 10px;">Loading banners...</div>
 
       <hr style="margin: 40px 0;">
 
@@ -476,8 +524,55 @@ app.get('/admin', adminAuth, (req, res) => {
           }
         }
         
+        async function loadBanners() {
+          const res = await fetch('/api/banners');
+          const banners = await res.json();
+          const container = document.getElementById('banners');
+          container.innerHTML = '';
+          if (banners.length === 0) {
+             container.innerHTML = '<p>No active banners.</p>';
+             return;
+          }
+          banners.forEach(b => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.style.flexDirection = 'column';
+            div.style.width = '200px';
+            div.innerHTML = \`
+              <img src="data:image/jpeg;base64,\${b.image_base64}" style="width:100%; border-radius:4px; margin-bottom:10px;">
+              <button class="btn btn-reject" onclick="deleteBanner(\${b.id})">Delete Banner</button>
+            \`;
+            container.appendChild(div);
+          });
+        }
+
+        async function uploadBanner() {
+          const fileInput = document.getElementById('bannerFile');
+          if (!fileInput.files[0]) return alert('Please select an image first.');
+          const reader = new FileReader();
+          reader.onload = async function() {
+            const base64String = reader.result.split(',')[1];
+            await fetch('/api/admin/banners', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image_base64: base64String })
+            });
+            fileInput.value = '';
+            loadBanners();
+          };
+          reader.readAsDataURL(fileInput.files[0]);
+        }
+
+        async function deleteBanner(id) {
+          if (confirm("Are you sure you want to delete this banner?")) {
+            await fetch('/api/admin/banners/' + id, { method: 'DELETE' });
+            loadBanners();
+          }
+        }
+        
         loadPending();
         loadApproved();
+        loadBanners();
       </script>
     </body>
     </html>
