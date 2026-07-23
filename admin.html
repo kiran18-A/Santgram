@@ -347,16 +347,16 @@
         div.className = 'card';
         div.innerHTML = `
           <div>
-            <strong>${r.username}</strong> submitted video:<br>
+            <strong>${r.username}<\/strong> submitted video:<br>
             <div style="margin: 10px 0; border-radius: 8px; overflow: hidden;">
-              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
-            </div>
-            <small style="color: var(--text-muted);">${r.description}</small>
-          </div>
+              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen><\/iframe>
+            <\/div>
+            <small style="color: var(--text-muted);">${r.description}<\/small>
+          <\/div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn btn-approve" onclick="approve(${r.id})">Approve</button>
-            <button class="btn btn-reject" onclick="reject(${r.id})" style="margin-left: 0;">Reject</button>
-          </div>
+            <button class="btn btn-approve" onclick="approve(${r.id})">Approve<\/button>
+            <button class="btn btn-reject" onclick="reject(${r.id})" style="margin-left: 0;">Reject<\/button>
+          <\/div>
         `;
         container.appendChild(div);
       });
@@ -378,15 +378,15 @@
         div.className = 'card';
         div.innerHTML = `
           <div>
-            <strong>${r.username}</strong><br>
+            <strong>${r.username}<\/strong><br>
             <div style="margin: 10px 0; border-radius: 8px; overflow: hidden;">
-              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
-            </div>
-            <small style="color: var(--text-muted);">${r.description}</small>
-          </div>
+              <iframe width="280" height="157" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen><\/iframe>
+            <\/div>
+            <small style="color: var(--text-muted);">${r.description}<\/small>
+          <\/div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn btn-reject" onclick="removeReel(${r.id})" style="margin-left: 0;">Remove Video</button>
-          </div>
+            <button class="btn btn-reject" onclick="removeReel(${r.id})" style="margin-left: 0;">Remove Video<\/button>
+          <\/div>
         `;
         container.appendChild(div);
       });
@@ -428,7 +428,7 @@
         div.style.width = '300px';
         div.innerHTML = `
           <img src="data:image/jpeg;base64,${b.image_base64}" style="width:100%; border-radius:8px; margin-bottom:15px;">
-          <button class="btn btn-reject" style="width: 100%; margin: 0;" onclick="deleteBanner(${b.id})">Delete Banner</button>
+          <button class="btn btn-reject" style="width: 100%; margin: 0;" onclick="deleteBanner(${b.id})">Delete Banner<\/button>
         `;
         container.appendChild(div);
       });
