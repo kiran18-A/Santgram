@@ -366,8 +366,7 @@ const adminAuth = (req, res, next) => {
   if (login && password && login === 'admin' && password === adminPassword) {
     return next();
   }
-  res.set('WWW-Authenticate', 'Basic realm="401"');
-  res.status(401).send('Authentication required.');
+  res.status(401).json({ error: 'Authentication required.' });
 };
 
 // Get Banners Endpoint
@@ -401,7 +400,7 @@ app.delete('/api/admin/banners/:id', adminAuth, async (req, res) => {
   }
 });
 
-app.get('/admin', adminAuth, (req, res) => {
+app.get('/admin', (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -426,10 +425,56 @@ app.get('/admin', adminAuth, (req, res) => {
           padding: 40px 20px; 
           background: var(--bg-main); 
           color: var(--text-main);
-          max-width: 900px; 
-          margin: auto; 
           min-height: 100vh;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
+
+        .container { width: 100%; max-width: 900px; }
+
+        /* Login Screen Styles */
+        #login-screen {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          height: 80vh;
+          width: 100%;
+        }
+
+        .login-card {
+          background: var(--bg-card);
+          padding: 40px;
+          border-radius: 20px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(12px);
+          width: 100%;
+          max-width: 400px;
+          text-align: center;
+        }
+
+        input[type="text"], input[type="password"] {
+          background: rgba(255,255,255,0.05);
+          padding: 15px;
+          border-radius: 12px;
+          color: var(--text-main);
+          border: 1px solid rgba(255,255,255,0.1);
+          width: 100%;
+          box-sizing: border-box;
+          margin-bottom: 20px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 16px;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+          outline: none;
+          border-color: var(--accent);
+          background: rgba(255,255,255,0.08);
+        }
+
+        .btn-full { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; }
 
         h2 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(to right, #f97316, #fcd34d); -webkit-background-clip: text; color: transparent; margin-bottom: 40px; text-align: center; }
         h3 { font-size: 1.5rem; color: var(--text-main); margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
@@ -492,27 +537,95 @@ app.get('/admin', adminAuth, (req, res) => {
       </style>
     </head>
     <body>
-      <h2>Santgram Admin Panel</h2>
-      
-      <h3>Pending Videos (Requires Approval)</h3>
-      <div id="reels">Loading...</div>
-
-      <hr style="margin: 40px 0;">
-
-      <h3>Banner Management</h3>
-      <div class="card" style="display: block;">
-        <h4>Upload New Banner</h4>
-        <input type="file" id="bannerFile" accept="image/*" />
-        <button class="btn btn-primary" onclick="uploadBanner()">Upload Banner</button>
+      <!-- LOGIN SCREEN -->
+      <div id="login-screen">
+        <div class="login-card">
+          <h2>Admin Login</h2>
+          <input type="text" id="username" placeholder="Username" />
+          <input type="password" id="password" placeholder="Password" />
+          <button class="btn btn-primary btn-full" onclick="login()">Login to Dashboard</button>
+          <p id="login-error" style="color: var(--danger); margin-top: 15px; display: none;">Invalid credentials.</p>
+        </div>
       </div>
-      <div id="banners" style="display: flex; flex-wrap: wrap; gap: 10px;">Loading banners...</div>
 
-      <hr style="margin: 40px 0;">
+      <!-- DASHBOARD SCREEN -->
+      <div id="dashboard-screen" class="container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+          <h2 style="margin: 0;">Santgram Admin Panel</h2>
+          <button class="btn btn-reject" onclick="logout()">Logout</button>
+        </div>
+        
+        <h3>Pending Videos (Requires Approval)</h3>
+        <div id="reels">Loading...</div>
 
-      <h3>Approved Videos (Live on App)</h3>
-      <div id="approved-reels">Loading...</div>
+        <hr>
+
+        <h3>Banner Management</h3>
+        <div class="card" style="display: block;">
+          <h4>Upload New Banner</h4>
+          <input type="file" id="bannerFile" accept="image/*" />
+          <button class="btn btn-primary" onclick="uploadBanner()">Upload Banner</button>
+        </div>
+        <div id="banners" style="display: flex; flex-wrap: wrap; gap: 10px;">Loading banners...</div>
+
+        <hr>
+
+        <h3>Approved Videos (Live on App)</h3>
+        <div id="approved-reels">Loading...</div>
+      </div>
 
       <script>
+        // AUTHENTICATION LOGIC
+        function login() {
+          const u = document.getElementById('username').value;
+          const p = document.getElementById('password').value;
+          const token = 'Basic ' + btoa(u + ':' + p);
+          localStorage.setItem('adminToken', token);
+          checkAuth();
+        }
+
+        function logout() {
+          localStorage.removeItem('adminToken');
+          document.getElementById('login-screen').style.display = 'flex';
+          document.getElementById('dashboard-screen').style.display = 'none';
+          document.getElementById('username').value = '';
+          document.getElementById('password').value = '';
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+          const token = localStorage.getItem('adminToken');
+          if (!options.headers) options.headers = {};
+          options.headers['Authorization'] = token;
+          
+          const res = await fetch(url, options);
+          if (res.status === 401) {
+            logout();
+            document.getElementById('login-error').style.display = 'block';
+            throw new Error('Unauthorized');
+          }
+          return res;
+        }
+
+        async function checkAuth() {
+          if (!localStorage.getItem('adminToken')) {
+            logout();
+            return;
+          }
+          try {
+            // Test auth with a quick fetch
+            await fetchWithAuth('/api/admin/pending-reels');
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+            loadPending();
+            loadApproved();
+            loadBanners();
+          } catch (e) {
+            // Handled by fetchWithAuth
+          }
+        }
+
+        // DASHBOARD LOGIC
         function extractYoutubeId(url) {
           if (!url || typeof url !== 'string') return '';
           if (!url.includes('http')) return url;
@@ -522,12 +635,12 @@ app.get('/admin', adminAuth, (req, res) => {
         }
 
         async function loadPending() {
-          const res = await fetch('/api/admin/pending-reels');
+          const res = await fetchWithAuth('/api/admin/pending-reels');
           const reels = await res.json();
           const container = document.getElementById('reels');
           container.innerHTML = '';
           if (reels.length === 0) {
-             container.innerHTML = '<p>No pending videos to approve.</p>';
+             container.innerHTML = '<p style="color: var(--text-muted);">No pending videos to approve.</p>';
              return;
           }
           reels.forEach(r => {
@@ -537,10 +650,10 @@ app.get('/admin', adminAuth, (req, res) => {
             div.innerHTML = \`
               <div>
                 <strong>\${r.username}</strong> submitted video:<br>
-                <div style="margin: 10px 0;">
+                <div style="margin: 10px 0; border-radius: 8px; overflow: hidden;">
                   <iframe width="280" height="157" src="https://www.youtube.com/embed/\${videoId}" frameborder="0" allowfullscreen></iframe>
                 </div>
-                <small>\${r.description}</small>
+                <small style="color: var(--text-muted);">\${r.description}</small>
               </div>
               <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button class="btn btn-approve" onclick="approve(\${r.id})">Approve</button>
@@ -552,7 +665,7 @@ app.get('/admin', adminAuth, (req, res) => {
         }
         
         async function loadApproved() {
-          const res = await fetch('/api/admin/approved-reels');
+          const res = await fetchWithAuth('/api/admin/approved-reels');
           const reels = await res.json();
           const container = document.getElementById('approved-reels');
           container.innerHTML = '';
@@ -581,32 +694,32 @@ app.get('/admin', adminAuth, (req, res) => {
         }
         
         async function approve(id) {
-          await fetch('/api/admin/approve-reel/' + id, { method: 'PUT' });
+          await fetchWithAuth('/api/admin/approve-reel/' + id, { method: 'PUT' });
           loadPending();
           loadApproved();
         }
         
         async function reject(id) {
           if (confirm("Are you sure you want to reject and delete this video?")) {
-            await fetch('/api/admin/reject-reel/' + id, { method: 'DELETE' });
+            await fetchWithAuth('/api/admin/reject-reel/' + id, { method: 'DELETE' });
             loadPending();
           }
         }
 
         async function removeReel(id) {
           if (confirm("Are you sure you want to permanently delete this approved video from the app?")) {
-            await fetch('/api/admin/remove-reel/' + id, { method: 'DELETE' });
+            await fetchWithAuth('/api/admin/remove-reel/' + id, { method: 'DELETE' });
             loadApproved();
           }
         }
         
         async function loadBanners() {
-          const res = await fetch('/api/banners');
+          const res = await fetch('/api/banners'); // Public endpoint, no auth needed
           const banners = await res.json();
           const container = document.getElementById('banners');
           container.innerHTML = '';
           if (banners.length === 0) {
-             container.innerHTML = '<p>No active banners.</p>';
+             container.innerHTML = '<p style="color: var(--text-muted);">No active banners.</p>';
              return;
           }
           banners.forEach(b => {
@@ -615,7 +728,7 @@ app.get('/admin', adminAuth, (req, res) => {
             div.style.flexDirection = 'column';
             div.style.width = '200px';
             div.innerHTML = \`
-              <img src="data:image/jpeg;base64,\${b.image_base64}" style="width:100%; border-radius:4px; margin-bottom:10px;">
+              <img src="data:image/jpeg;base64,\${b.image_base64}" style="width:100%; border-radius:8px; margin-bottom:10px;">
               <button class="btn btn-reject" onclick="deleteBanner(\${b.id})">Delete Banner</button>
             \`;
             container.appendChild(div);
@@ -628,7 +741,7 @@ app.get('/admin', adminAuth, (req, res) => {
           const reader = new FileReader();
           reader.onload = async function() {
             const base64String = reader.result.split(',')[1];
-            await fetch('/api/admin/banners', {
+            await fetchWithAuth('/api/admin/banners', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_base64: base64String })
@@ -641,14 +754,13 @@ app.get('/admin', adminAuth, (req, res) => {
 
         async function deleteBanner(id) {
           if (confirm("Are you sure you want to delete this banner?")) {
-            await fetch('/api/admin/banners/' + id, { method: 'DELETE' });
+            await fetchWithAuth('/api/admin/banners/' + id, { method: 'DELETE' });
             loadBanners();
           }
         }
         
-        loadPending();
-        loadApproved();
-        loadBanners();
+        // Start app
+        checkAuth();
       </script>
     </body>
     </html>
